@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rings - Meditative Focus Timers</title>
   <style>
+    :root {
+      --timer-size: 280px;
+      --grid-gap: 48px;
+      --back-offset: 24px;
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --back-offset: 12px;
+      }
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -27,8 +39,8 @@
     /* Minimal Top-Left Back Link */
     .back-link {
       position: absolute;
-      top: 24px;
-      left: 24px;
+      top: var(--back-offset);
+      left: var(--back-offset);
       font-size: 0.8rem;
       color: rgba(255, 255, 255, 0.45);
       text-decoration: none;
@@ -47,9 +59,9 @@
     .grid-container {
       position: relative;
       display: grid;
-      grid-template-columns: repeat(2, 280px);
-      grid-template-rows: repeat(2, 280px);
-      gap: 48px; /* 48px gap horizontal & vertical */
+      grid-template-columns: repeat(2, var(--timer-size));
+      grid-template-rows: repeat(2, var(--timer-size));
+      gap: var(--grid-gap);
       justify-content: center;
       align-content: center;
     }
@@ -83,14 +95,14 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 280px;
-      height: 280px;
+      width: var(--timer-size);
+      height: var(--timer-size);
     }
 
     .clock-canvas {
       display: block;
-      width: 280px;
-      height: 280px;
+      width: var(--timer-size);
+      height: var(--timer-size);
       background: transparent;
       z-index: 10;
     }
@@ -98,7 +110,7 @@
     /* Clock Labels */
     .clock-label {
       position: absolute;
-      top: 292px;
+      top: calc(var(--timer-size) + 12px);
       left: 0;
       right: 0;
       text-align: center;
@@ -166,6 +178,15 @@
       color: rgba(255, 255, 255, 0.85);
       letter-spacing: 0.12em;
       line-height: 1.2;
+    }
+
+    @media (max-width: 600px) {
+      .center-time .time-readout {
+        font-size: 11px;
+      }
+      .center-time {
+        padding: 6px 12px;
+      }
     }
 
     /* Fullscreen Alarm Overlay */
@@ -319,6 +340,7 @@
         this.canvas = containerEl.querySelector('.clock-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.labelEl = containerEl.querySelector('.clock-label');
+        this.scale = 1.0; // default scale
 
         // Timer States
         this.timerState = {
@@ -450,12 +472,12 @@
           const tipX = cx + Math.cos(startAngle) * radius;
           const tipY = cy + Math.sin(startAngle) * radius;
           const distToTip = Math.hypot(mx - tipX, my - tipY);
-          if (distToTip <= 30) {
+          if (distToTip <= 30 * this.scale) {
             isNearTip = true;
           }
         }
 
-        const isNearOuterRing = Math.abs(d - 120) <= 30;
+        const isNearOuterRing = Math.abs(d - 120 * this.scale) <= 30 * this.scale;
 
         if (this.dragState !== 'idle') {
           this.canvas.style.cursor = 'grabbing';
@@ -487,13 +509,13 @@
           const tipY = cy + Math.sin(startAngle) * radius;
 
           const distToTip = Math.hypot(mx - tipX, my - tipY);
-          if (distToTip <= 30) {
+          if (distToTip <= 30 * this.scale) {
             this.dragState = 'adjusting';
             this.hasDraggedOnce = true;
             this.dragMinutes = Math.max(1, Math.min(60, this.getAngleFromMouse(cx, cy, mx, my, rotationOffset)));
           }
         } else {
-          const isNearOuterRing = Math.abs(d - 120) <= 30;
+          const isNearOuterRing = Math.abs(d - 120 * this.scale) <= 30 * this.scale;
           if (isNearOuterRing) {
             this.dragState = 'setting';
             this.hasDraggedOnce = true;
@@ -807,14 +829,14 @@
           const opacity = 1 - progress;
 
           this.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-          this.ctx.lineWidth = 1;
+          this.ctx.lineWidth = 1 * this.scale;
 
           b.lines.forEach(l => {
-            const dist = l.speed * progress * 20; 
+            const dist = l.speed * progress * 20 * this.scale; 
             const sx = b.x + Math.cos(l.angle) * dist;
             const sy = b.y + Math.sin(l.angle) * dist;
-            const ex = sx + Math.cos(l.angle) * l.length;
-            const ey = sy + Math.sin(l.angle) * l.length;
+            const ex = sx + Math.cos(l.angle) * l.length * this.scale;
+            const ey = sy + Math.sin(l.angle) * l.length * this.scale;
 
             this.ctx.beginPath();
             this.ctx.moveTo(sx, sy);
@@ -830,7 +852,7 @@
 
         if (this.dragState !== 'idle') {
           // Setting readout: MM:00 at 18px in white
-          this.ctx.font = 'bold 18px ui-monospace, SFMono-Regular, monospace';
+          this.ctx.font = `bold ${Math.round(18 * this.scale)}px ui-monospace, SFMono-Regular, monospace`;
           this.ctx.fillStyle = '#ffffff';
           const displayMins = Math.round(this.dragMinutes);
           this.ctx.fillText(`${pad(displayMins)}:00`, cx, cy);
@@ -846,7 +868,7 @@
           }
 
           this.ctx.fillStyle = fontColor;
-          const fontSize = Math.round(14 * scale);
+          const fontSize = Math.round(14 * this.scale * scale);
           this.ctx.font = `bold ${fontSize}px ui-monospace, SFMono-Regular, monospace`;
 
           const mins = Math.floor(this.timerState.timeLeft / 60);
@@ -854,7 +876,7 @@
           this.ctx.fillText(`${pad(mins)}:${pad(secs)}`, cx, cy);
         } else {
           // Idle readout: DRAG at 9px rgba(255,255,255,0.2)
-          this.ctx.font = '9px ui-monospace, SFMono-Regular, monospace';
+          this.ctx.font = `${Math.round(9 * this.scale)}px ui-monospace, SFMono-Regular, monospace`;
           this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
           this.ctx.fillText("DRAG", cx, cy);
         }
@@ -874,6 +896,31 @@
     cellContainers.forEach((el, index) => {
       clocks.push(new TimerRing(index, el));
     });
+
+    // Handle Responsive Layout and Resize
+    function updateLayout() {
+      const gap = window.innerWidth < 600 ? 24 : 48;
+      const padding = window.innerWidth < 600 ? 16 : 32;
+      const timerSize = Math.min(
+        (window.innerWidth - padding * 2 - gap) / 2,
+        (window.innerHeight - padding * 2 - gap) / 2,
+        280
+      );
+
+      const root = document.documentElement;
+      root.style.setProperty('--timer-size', `${timerSize}px`);
+      root.style.setProperty('--grid-gap', `${gap}px`);
+
+      clocks.forEach(c => {
+        c.canvas.width = timerSize;
+        c.canvas.height = timerSize;
+        c.scale = timerSize / 280;
+      });
+    }
+
+    // Call initially and bind to window resize
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
 
     // Shared requestAnimationFrame Loop
     function globalLoop(timestamp) {
@@ -949,8 +996,9 @@
       const loopDuration = 2000;
       const timeInLoop = elapsed % loopDuration;
 
-      // Draw all 8 rings staggered expanding +20px and fading out
-      ctx.lineWidth = 1;
+      // Draw all 8 rings staggered expanding +20px and fading out (scaled)
+      const alarmScale = clocks[0] ? clocks[0].scale : 1.0;
+      ctx.lineWidth = 1 * alarmScale;
 
       for (let i = 0; i < 8; i++) {
         const staggerIndex = 7 - i; // Innermost (7) first
@@ -959,8 +1007,8 @@
 
         if (timeInLoop >= delay && timeInLoop < delay + animDuration) {
           const t_ring = (timeInLoop - delay) / animDuration;
-          const startRadius = 120 - i * (90 / 7);
-          const currentRadius = startRadius + t_ring * 20;
+          const startRadius = (120 - i * (90 / 7)) * alarmScale;
+          const currentRadius = startRadius + t_ring * 20 * alarmScale;
           const opacity = 1 - t_ring;
 
           ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.35})`;
