@@ -27,13 +27,15 @@
       background-color: #0a0a0a;
       overflow: hidden;
       width: 100vw;
-      height: 100vh;
+      min-height: 100vh;
       font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       display: flex;
       justify-content: center;
       align-items: center;
       user-select: none;
       -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
     }
 
     /* Minimal Top-Left Back Link */
@@ -442,8 +444,8 @@
       }
 
       getRingRadius(i) {
-        // equal spacing outermost 120px to innermost 30px
-        return 120 - i * (90 / 7);
+        const maxRadius = (this.canvas.width / 2) * 0.88;
+        return maxRadius - i * (maxRadius * 0.75 / 7);
       }
 
       getAngleFromMouse(cx, cy, mx, my, rotationAngle) {
@@ -456,6 +458,7 @@
 
       updateCursor(cx, cy, mx, my, rotationAngle) {
         const d = Math.hypot(mx - cx, my - cy);
+        const maxRadius = (this.canvas.width / 2) * 0.88;
 
         let isNearTip = false;
         if (this.timerState.active && this.timerState.timeLeft > 0) {
@@ -477,7 +480,7 @@
           }
         }
 
-        const isNearOuterRing = Math.abs(d - 120 * this.scale) <= 30 * this.scale;
+        const isNearOuterRing = Math.abs(d - maxRadius) <= 30 * this.scale;
 
         if (this.dragState !== 'idle') {
           this.canvas.style.cursor = 'grabbing';
@@ -493,6 +496,7 @@
         const cx = this.canvas.width / 2;
         const cy = this.canvas.height / 2;
         const d = Math.hypot(mx - cx, my - cy);
+        const maxRadius = (this.canvas.width / 2) * 0.88;
         
         if (this.timerState.active) {
           const activeIdx = Math.floor(((this.timerState.duration - this.timerState.timeLeft) / this.timerState.duration) * 8);
@@ -515,7 +519,7 @@
             this.dragMinutes = Math.max(1, Math.min(60, this.getAngleFromMouse(cx, cy, mx, my, rotationOffset)));
           }
         } else {
-          const isNearOuterRing = Math.abs(d - 120 * this.scale) <= 30 * this.scale;
+          const isNearOuterRing = Math.abs(d - maxRadius) <= 30 * this.scale;
           if (isNearOuterRing) {
             this.dragState = 'setting';
             this.hasDraggedOnce = true;
@@ -630,6 +634,8 @@
         // Draw Canvas Background State Gradients
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        const maxRadius = (this.canvas.width / 2) * 0.88;
+
         // Draw overlapping radial gradients when complete or running
         if (this.timerCompleteAnim.active) {
           const elapsedAnim = Date.now() - this.timerCompleteAnim.startTime;
@@ -638,23 +644,23 @@
             const alpha = 0.15 * Math.sin(progress * Math.PI);
 
             // Gradient 1: Center
-            const bgGrad1 = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+            const bgGrad1 = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius);
             bgGrad1.addColorStop(0, `rgba(255, 51, 34, ${alpha})`);
             bgGrad1.addColorStop(1, 'rgba(255, 51, 34, 0)');
             this.ctx.fillStyle = bgGrad1;
             this.ctx.beginPath();
-            this.ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+            this.ctx.arc(cx, cy, maxRadius, 0, Math.PI * 2);
             this.ctx.fill();
 
-            // Gradient 2: Off-center (60% canvas = 168px radius)
-            const ox = cx + Math.cos(this.bgOffsetAngle) * this.bgOffsetDist;
-            const oy = cy + Math.sin(this.bgOffsetAngle) * this.bgOffsetDist;
-            const bgGrad2 = this.ctx.createRadialGradient(ox, oy, 0, ox, oy, 168);
+            // Gradient 2: Off-center (60% canvas = maxRadius * 1.36)
+            const ox = cx + Math.cos(this.bgOffsetAngle) * this.bgOffsetDist * this.scale;
+            const oy = cy + Math.sin(this.bgOffsetAngle) * this.bgOffsetDist * this.scale;
+            const bgGrad2 = this.ctx.createRadialGradient(ox, oy, 0, ox, oy, maxRadius * 1.36);
             bgGrad2.addColorStop(0, `rgba(255, 51, 34, ${alpha * 0.8})`);
             bgGrad2.addColorStop(1, 'rgba(255, 51, 34, 0)');
             this.ctx.fillStyle = bgGrad2;
             this.ctx.beginPath();
-            this.ctx.arc(cx, cy, 168, 0, Math.PI * 2);
+            this.ctx.arc(ox, oy, maxRadius * 1.36, 0, Math.PI * 2);
             this.ctx.fill();
           } else {
             this.timerCompleteAnim.active = false;
@@ -665,33 +671,33 @@
           const startAlpha = isLastSegment ? 0.06 : 0.03;
 
           // Gradient 1: Center
-          const bgGrad1 = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+          const bgGrad1 = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius);
           bgGrad1.addColorStop(0, `rgba(255, 51, 34, ${startAlpha})`);
           bgGrad1.addColorStop(1, 'rgba(255, 51, 34, 0)');
           this.ctx.fillStyle = bgGrad1;
           this.ctx.beginPath();
-          this.ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+          this.ctx.arc(cx, cy, maxRadius, 0, Math.PI * 2);
           this.ctx.fill();
 
-          // Gradient 2: Off-center (60% canvas = 168px radius)
-          const ox = cx + Math.cos(this.bgOffsetAngle) * this.bgOffsetDist;
-          const oy = cy + Math.sin(this.bgOffsetAngle) * this.bgOffsetDist;
-          const bgGrad2 = this.ctx.createRadialGradient(ox, oy, 0, ox, oy, 168);
+          // Gradient 2: Off-center (60% canvas = maxRadius * 1.36)
+          const ox = cx + Math.cos(this.bgOffsetAngle) * this.bgOffsetDist * this.scale;
+          const oy = cy + Math.sin(this.bgOffsetAngle) * this.bgOffsetDist * this.scale;
+          const bgGrad2 = this.ctx.createRadialGradient(ox, oy, 0, ox, oy, maxRadius * 1.36);
           bgGrad2.addColorStop(0, 'rgba(255, 51, 34, 0.04)');
           bgGrad2.addColorStop(1, 'rgba(255, 51, 34, 0)');
           this.ctx.fillStyle = bgGrad2;
           this.ctx.beginPath();
-          this.ctx.arc(cx, cy, 168, 0, Math.PI * 2);
+          this.ctx.arc(ox, oy, maxRadius * 1.36, 0, Math.PI * 2);
           this.ctx.fill();
         }
 
         // Draw Faint Radial Gradient behind clock (rgba(255,255,255,0.02) -> transparent)
-        const radialGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, 150);
+        const radialGrad = this.ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius * 1.25);
         radialGrad.addColorStop(0, 'rgba(255, 255, 255, 0.02)');
         radialGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
         this.ctx.fillStyle = radialGrad;
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, 150, 0, Math.PI * 2);
+        this.ctx.arc(cx, cy, maxRadius * 1.25, 0, Math.PI * 2);
         this.ctx.fill();
 
         // Draw Concentric Rings
@@ -901,11 +907,9 @@
     function updateLayout() {
       const gap = window.innerWidth < 600 ? 24 : 48;
       const padding = window.innerWidth < 600 ? 16 : 32;
-      const timerSize = Math.min(
-        (window.innerWidth - padding * 2 - gap) / 2,
-        (window.innerHeight - padding * 2 - gap) / 2,
-        280
-      );
+      const availW = window.innerWidth - padding * 2 - gap;
+      const availH = window.innerHeight - padding * 2 - gap - 60;
+      const timerSize = Math.min(availW / 2, availH / 2, 280);
 
       const root = document.documentElement;
       root.style.setProperty('--timer-size', `${timerSize}px`);
@@ -996,9 +1000,10 @@
       const loopDuration = 2000;
       const timeInLoop = elapsed % loopDuration;
 
-      // Draw all 8 rings staggered expanding +20px and fading out (scaled)
+      // Draw all 8 rings staggered expanding +20px and fading out (scaled and aligned to maxRadius)
       const alarmScale = clocks[0] ? clocks[0].scale : 1.0;
       ctx.lineWidth = 1 * alarmScale;
+      const maxRadius = (clocks[0] ? (clocks[0].canvas.width / 2) * 0.88 : 120);
 
       for (let i = 0; i < 8; i++) {
         const staggerIndex = 7 - i; // Innermost (7) first
@@ -1007,7 +1012,7 @@
 
         if (timeInLoop >= delay && timeInLoop < delay + animDuration) {
           const t_ring = (timeInLoop - delay) / animDuration;
-          const startRadius = (120 - i * (90 / 7)) * alarmScale;
+          const startRadius = maxRadius - i * (maxRadius * 0.75 / 7);
           const currentRadius = startRadius + t_ring * 20 * alarmScale;
           const opacity = 1 - t_ring;
 
