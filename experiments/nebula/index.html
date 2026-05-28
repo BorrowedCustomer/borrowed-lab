@@ -13,13 +13,13 @@
   <style>
     /* CSS Variables for Dynamic Theming */
     :root {
-      --theme-accent: #a855f7;
-      --theme-accent-rgb: 168, 85, 247;
-      --bg-color: #0a0a0f;
-      --panel-bg: rgba(10, 10, 15, 0.65);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --border-color: rgba(255, 255, 255, 0.08);
+      --theme-accent: #FF3322;
+      --theme-accent-rgb: 255, 51, 34;
+      --bg-color: #0a0a0a;
+      --panel-bg: #111111;
+      --text-primary: #ffffff;
+      --text-secondary: #999999;
+      --border-color: #333333;
       --font-header: 'Outfit', sans-serif;
       --font-body: 'Plus Jakarta Sans', sans-serif;
     }
@@ -59,7 +59,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at center, transparent 35%, rgba(10, 10, 15, 0.85) 100%);
+      background: radial-gradient(circle at center, transparent 35%, rgba(10, 10, 10, 0.85) 100%);
       pointer-events: none;
       z-index: 2;
     }
@@ -87,12 +87,10 @@
       left: 24px;
       width: 320px;
       background: var(--panel-bg);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
       border: 1px solid var(--border-color);
       border-radius: 18px;
       padding: 24px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      box-shadow: none;
       z-index: 10;
       transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
     }
@@ -201,9 +199,9 @@
     }
 
     .preset-btn {
-      background: rgba(255, 255, 255, 0.03);
+      background: #222222;
       border: 1px solid var(--border-color);
-      color: var(--text-secondary);
+      color: #666666;
       padding: 8px 4px;
       border-radius: 8px;
       font-family: inherit;
@@ -213,18 +211,17 @@
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       text-align: center;
     }
-
+ 
     .preset-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-primary);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: #333333;
+      color: #ffffff;
     }
-
+ 
     .preset-btn.active {
-      background: rgba(var(--theme-accent-rgb), 0.12);
+      background: var(--theme-accent);
       border-color: var(--theme-accent);
-      color: var(--text-primary);
-      box-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.2);
+      color: #ffffff;
+      box-shadow: none;
     }
 
     /* Sliders Custom Style */
@@ -332,7 +329,7 @@
     .stats-panel {
       display: flex;
       justify-content: space-between;
-      background: rgba(255, 255, 255, 0.02);
+      background: #181818;
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 10px 14px;
@@ -389,23 +386,23 @@
       background: var(--theme-accent);
       border: 1px solid transparent;
       color: #ffffff;
-      box-shadow: 0 4px 14px rgba(var(--theme-accent-rgb), 0.3);
+      box-shadow: none;
     }
-
+ 
     .action-btn.primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(var(--theme-accent-rgb), 0.5);
+      background: #e02c1b;
+      box-shadow: none;
     }
-
+ 
     .action-btn.secondary {
-      background: rgba(255, 255, 255, 0.04);
+      background: #222222;
       border: 1px solid var(--border-color);
-      color: var(--text-primary);
+      color: #ffffff;
     }
-
+ 
     .action-btn.secondary:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.18);
+      background: #333333;
+      border-color: #555555;
     }
 
     /* Floating Control Button (FAB) */
@@ -699,38 +696,30 @@
     const THEMES = {
       cosmic: {
         name: 'Orion',
-        accent: '#a855f7',
+        accent: '#FF3322',
         colors: [
-          { r: 168, g: 85, b: 247 }, // Purple
-          { r: 20, g: 184, b: 166 }, // Teal
-          { r: 244, g: 63, b: 94 }   // Coral
+          { r: 255, g: 51, b: 34 }
         ]
       },
       vortex: {
         name: 'Vortex',
-        accent: '#06b6d4',
+        accent: '#FF3322',
         colors: [
-          { r: 6, g: 182, b: 212 },  // Cyan
-          { r: 99, g: 102, b: 241 }, // Indigo
-          { r: 236, g: 72, b: 153 }  // Pink
+          { r: 255, g: 51, b: 34 }
         ]
       },
       aurora: {
         name: 'Aurora',
-        accent: '#10b981',
+        accent: '#FF3322',
         colors: [
-          { r: 16, g: 185, b: 129 }, // Emerald
-          { r: 45, g: 212, b: 191 }, // Mint Teal
-          { r: 139, g: 92, b: 246 }  // Bright Purple
+          { r: 255, g: 51, b: 34 }
         ]
       },
       nova: {
         name: 'Supernova',
-        accent: '#ef4444',
+        accent: '#FF3322',
         colors: [
-          { r: 239, g: 68, b: 68 },  // Red
-          { r: 249, g: 115, b: 22 }, // Orange
-          { r: 245, g: 158, b: 11 }  // Yellow-gold
+          { r: 255, g: 51, b: 34 }
         ]
       }
     };
@@ -839,9 +828,18 @@
         this.y = y !== undefined ? y : Math.random() * canvas.height;
         this.isBurst = isBurst;
         
-        // Match random color from the current active palette
-        const themeColors = activeTheme.colors;
-        this.colorData = themeColors[Math.floor(Math.random() * themeColors.length)];
+        // Assign color strictly matching the 60/25/15 ratio
+        const r = Math.random();
+        if (r < 0.60) {
+          this.colorType = 'white';
+          this.colorData = { r: 255, g: 255, b: 255 };
+        } else if (r < 0.85) {
+          this.colorType = 'red';
+          this.colorData = { r: 255, g: 51, b: 34 };
+        } else {
+          this.colorType = 'dark';
+          this.colorData = { r: 51, g: 51, b: 51 };
+        }
         
         if (this.isBurst) {
           // Spark Burst Behavior
@@ -947,18 +945,27 @@
         if (this.isBurst && this.alpha <= 0) return;
         const opacity = this.isBurst ? this.alpha : 0.85;
 
-        // Visual optimization: Draw multi-layer opacity circles rather than ctx.shadowBlur
-        // Layer 1: Ambient outer glow
-        ctx.fillStyle = `rgba(${this.colorData.r}, ${this.colorData.g}, ${this.colorData.b}, ${opacity * 0.16})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        
+        // Dynamic glow setting based on particle type
+        if (this.colorType === 'white') {
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = `rgba(255, 255, 255, ${opacity * 0.3})`;
+        } else if (this.colorType === 'red') {
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = `rgba(255, 51, 34, ${opacity * 0.5})`;
+        } else {
+          // dark particles get no shadow blur glow
+          ctx.shadowBlur = 0;
+        }
 
-        // Layer 2: Glowing core
+        // Glowing core
         ctx.fillStyle = `rgba(${this.colorData.r}, ${this.colorData.g}, ${this.colorData.b}, ${opacity})`;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.restore();
       }
     }
 
@@ -1091,11 +1098,20 @@
       // Re-adjust particle array to match target size
       adjustParticleCount(settings.particleCount);
 
-      // Mutate current particles colors to the new theme
+      // Mutate current particles colors keeping our strict 60/25/15 ratio
       particles.forEach(p => {
         if (!p.isBurst) {
-          const themeColors = activeTheme.colors;
-          p.colorData = themeColors[Math.floor(Math.random() * themeColors.length)];
+          const r = Math.random();
+          if (r < 0.60) {
+            p.colorType = 'white';
+            p.colorData = { r: 255, g: 255, b: 255 };
+          } else if (r < 0.85) {
+            p.colorType = 'red';
+            p.colorData = { r: 255, g: 51, b: 34 };
+          } else {
+            p.colorType = 'dark';
+            p.colorData = { r: 51, g: 51, b: 51 };
+          }
         }
       });
     }
@@ -1265,8 +1281,8 @@
         lastTime = timestamp;
       }
 
-      // 2. Draw Trails Background
-      ctx.fillStyle = `rgba(10, 10, 15, ${settings.trailStrength})`;
+      // 2. Draw Trails Background (pure near-black #0a0a0a)
+      ctx.fillStyle = `rgba(10, 10, 10, ${settings.trailStrength})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // 3. Draw Dynamic Constellation Network Links

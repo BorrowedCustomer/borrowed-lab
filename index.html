@@ -14,111 +14,97 @@
 
     body {
       background-color: #0a0a0f;
-      color: #ffffff;
-      /* Custom high-end monospace stack defaulting to system monospace, falling back to Courier New */
-      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      color: rgba(255, 255, 255, 0.85);
+      /* Base monospace styling utilizing system Courier default */
+      font-family: "Courier New", Courier, monospace;
       line-height: 1.6;
+      padding: 120px 24px;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* Minimal Reading Container */
     .container {
       max-width: 640px;
-      width: 100%;
       margin: 0 auto;
-      padding: 120px 24px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
+      width: 100%;
     }
 
-    /* Top Section */
+    /* 1. Title section styling */
     header {
       margin-bottom: 80px;
     }
 
     h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 6px;
+      font-size: 2.5rem;
+      font-weight: bold;
       color: #ffffff;
+      margin-bottom: 8px;
     }
 
     .description {
-      font-size: 0.85rem;
+      font-size: 13px;
       color: rgba(255, 255, 255, 0.4);
       margin-bottom: 12px;
     }
 
-    .home-link {
-      font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.4);
+    .back-link {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.3);
       text-decoration: none;
       display: inline-block;
       transition: color 0.2s ease;
     }
 
-    .home-link:hover {
+    .back-link:hover {
       color: #ffffff;
     }
 
-    /* Spacing: Generous vertical whitespace between sections */
+    /* 2. Experiment sections */
     .category-section {
-      margin-bottom: 64px;
+      margin-bottom: 48px;
     }
 
     .category-header {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.25);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: rgba(255, 255, 255, 0.3);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 20px;
-      border: none;
+      margin-bottom: 18px;
     }
 
-    /* Text-only list layout */
     .experiment-list {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 8px;
     }
 
     .experiment-item {
-      font-size: 0.95rem;
+      font-size: 1.1rem;
+      padding: 4px 0;
     }
 
     .experiment-item a {
-      color: #ffffff;
+      color: rgba(255, 255, 255, 0.85);
       text-decoration: none;
       display: inline-block;
-      transition: opacity 0.2s ease;
+      transition: color 0.2s ease;
     }
 
-    /* Hover effect: Subtle underline or opacity increase */
     .experiment-item a:hover {
       text-decoration: underline;
-      text-underline-offset: 4px;
     }
 
-    /* Locked Coming Soon text styling */
+    /* Coming Soon locked items */
     .experiment-item.locked {
-      color: rgba(255, 255, 255, 0.25);
+      color: rgba(255, 255, 255, 0.2);
       cursor: default;
     }
 
-    /* Footer Styles */
+    /* 3. Footer */
     footer {
-      margin-top: auto;
-      padding-top: 80px;
-      font-size: 0.75rem;
+      margin-top: 80px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.25);
-      letter-spacing: 0.02em;
     }
   </style>
 </head>
@@ -129,10 +115,10 @@
     <header>
       <h1>BORROWED LAB.</h1>
       <p class="description">A place for experimentation and creation.</p>
-      <a href="#" class="home-link">← borrowedpage.kr</a>
+      <a href="#" class="back-link">← borrowedpage.kr</a>
     </header>
 
-    <!-- Main Content Container for sections -->
+    <!-- Main Content Dynamic Container -->
     <main id="mainContent"></main>
 
     <!-- Footer -->
@@ -143,43 +129,19 @@
 
   <script>
     // -------------------------------------------------------------
-    // Experiments Array Registry
-    // Add new items here to populate the portfolio dynamically.
+    // Dynamic Experiment List Array
     // -------------------------------------------------------------
     const EXPERIMENTS = [
-      {
-        category: "PARTICLE",
-        title: "Nebula",
-        url: "./experiments/nebula/index.html",
-        locked: false
-      },
-      {
-        category: "GENERATIVE",
-        title: "Pulse",
-        url: "./experiments/vine/index.html",
-        locked: false
-      },
-      {
-        category: "COMING SOON",
-        title: "Lightspeed",
-        url: "",
-        locked: true
-      },
-      {
-        category: "COMING SOON",
-        title: "Graviton",
-        url: "",
-        locked: true
-      }
+      { category: "PARTICLE", title: "Nebula", url: "./experiments/nebula/" },
+      { category: "GENERATIVE", title: "Timepiece", url: "./experiments/vine/" },
+      { category: "COMING SOON", title: "Lightspeed", url: null },
+      { category: "COMING SOON", title: "Graviton", url: null }
     ];
 
-    // -------------------------------------------------------------
-    // Grouping & Rendering
-    // -------------------------------------------------------------
     const main = document.getElementById('mainContent');
     const groups = {};
 
-    // Group items sequentially preserving order
+    // Group experiments by category sequentially while preserving order
     EXPERIMENTS.forEach(exp => {
       if (!groups[exp.category]) {
         groups[exp.category] = [];
@@ -199,7 +161,7 @@
       
       let itemsHTML = '';
       items.forEach(item => {
-        if (item.locked) {
+        if (!item.url) {
           itemsHTML += `<div class="experiment-item locked">${item.title}</div>`;
         } else {
           itemsHTML += `<div class="experiment-item"><a href="${item.url}">${item.title}</a></div>`;
