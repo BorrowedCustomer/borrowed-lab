@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nebula - Interactive Particle Simulation</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* CSS Variables for Dynamic Theming */
+    :root {
+      --theme-accent: #a855f7;
+      --theme-accent-rgb: 168, 85, 247;
+      --bg-color: #0a0a0f;
+      --panel-bg: rgba(10, 10, 15, 0.65);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --font-header: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: var(--font-body);
+      color: var(--text-primary);
+    }
+
+    /* Full-screen Canvas */
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Ambient Vignette Effect */
+    .vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, transparent 35%, rgba(10, 10, 15, 0.85) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Huge Subtle Background Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--font-header);
+      font-size: 15vw;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.012);
+      pointer-events: none;
+      z-index: 0;
+      text-transform: uppercase;
+    }
+
+    /* HUD Glassmorphism Control Panel */
+    .control-panel {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 320px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      z-index: 10;
+      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+    }
+
+    .control-panel.hidden {
+      transform: translateX(-360px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Panel Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .title-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-family: var(--font-header);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      background: rgba(var(--theme-accent-rgb), 0.15);
+      color: var(--theme-accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(var(--theme-accent-rgb), 0.3);
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-family: var(--font-header);
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      background: linear-gradient(135deg, #ffffff 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Close Button inside Panel */
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 16px 0;
+    }
+
+    /* Controls Groups */
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    /* Presets Grid button styling */
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 8px 4px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      text-align: center;
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .preset-btn.active {
+      background: rgba(var(--theme-accent-rgb), 0.12);
+      border-color: var(--theme-accent);
+      color: var(--text-primary);
+      box-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.2);
+    }
+
+    /* Sliders Custom Style */
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .slider-header label {
+      margin-bottom: 0;
+    }
+
+    .slider-val {
+      font-family: monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--theme-accent);
+      text-shadow: 0 0 8px rgba(var(--theme-accent-rgb), 0.3);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      outline: none;
+      margin: 8px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--theme-accent);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--theme-accent);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+      box-shadow: 0 0 12px var(--theme-accent);
+    }
+
+    /* Toggle Switch Custom Style */
+    .row-group {
+      margin-bottom: 12px;
+    }
+
+    .switch-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .switch-container span:first-child {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .switch-container input {
+      display: none;
+    }
+
+    .slider-switch {
+      position: relative;
+      width: 36px;
+      height: 18px;
+      background-color: rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border-color);
+    }
+
+    .slider-switch::before {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #f8fafc;
+      border-radius: 50%;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    input:checked + .slider-switch {
+      background-color: var(--theme-accent);
+      border-color: transparent;
+      box-shadow: 0 0 8px var(--theme-accent);
+    }
+
+    input:checked + .slider-switch::before {
+      transform: translateX(18px);
+    }
+
+    /* Stats Panel */
+    .stats-panel {
+      display: flex;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin: 16px 0;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    .stat-item:not(:last-child) {
+      border-right: 1px solid var(--border-color);
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: monospace;
+    }
+
+    /* Action Buttons */
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .action-btn.primary {
+      background: var(--theme-accent);
+      border: 1px solid transparent;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(var(--theme-accent-rgb), 0.3);
+    }
+
+    .action-btn.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(var(--theme-accent-rgb), 0.5);
+    }
+
+    .action-btn.secondary {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .action-btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Floating Control Button (FAB) */
+    .fab-btn {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--panel-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      z-index: 9;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.8) rotate(-45deg);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .fab-btn:hover {
+      border-color: var(--theme-accent);
+      color: var(--theme-accent);
+      transform: scale(1.05) rotate(45deg);
+      box-shadow: 0 0 15px rgba(var(--theme-accent-rgb), 0.35);
+    }
+
+    .fab-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* Interactive Instruction Watermark */
+    .instructions {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      opacity: 0.65;
+      letter-spacing: 0.05em;
+      z-index: 3;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+      font-weight: 500;
+      background: rgba(10, 10, 15, 0.4);
+      padding: 8px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .instructions.hidden {
+      opacity: 0;
+    }
+
+    .dot {
+      color: var(--theme-accent);
+      font-weight: bold;
+    }
+
+    /* Hide Controls Indicator at Right-top */
+    .zen-indicator {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      opacity: 0.3;
+      z-index: 2;
+      pointer-events: none;
+      letter-spacing: 0.05em;
+    }
+
+    /* Responsive scaling */
+    @media (max-width: 480px) {
+      .control-panel {
+        width: calc(100% - 32px);
+        top: 16px;
+        left: 16px;
+        padding: 16px;
+      }
+      .control-panel.hidden {
+        transform: translateY(-110%);
+      }
+      .fab-btn {
+        top: 16px;
+        left: 16px;
+      }
+      .instructions {
+        flex-direction: column;
+        gap: 4px;
+        bottom: 16px;
+        border-radius: 12px;
+        text-align: center;
+      }
+      .instructions .dot {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Watermark -->
+  <div class="watermark">Nebula</div>
+
+  <!-- Ambient Light Vignette -->
+  <div class="vignette"></div>
+
+  <!-- Interactive Canvas -->
+  <canvas id="nebulaCanvas"></canvas>
+
+  <!-- Zenith Guide -->
+  <div class="zen-indicator">Zen Mode [H]</div>
+
+  <!-- Floating HUD Action Button -->
+  <button class="fab-btn" id="fabBtn" aria-label="Open Panel">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </button>
+
+  <!-- Interactive Controls Card -->
+  <div class="control-panel" id="controlPanel">
+    <div class="header">
+      <div class="title-container">
+        <div class="brand">
+          <h2>NEBULA</h2>
+          <span class="badge" id="themeBadge">Cosmic</span>
+        </div>
+        <p class="subtitle">Interactive Particle Sandbox</p>
+      </div>
+      <button class="close-btn" id="closeBtn" aria-label="Close Panel">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- Presets -->
+    <div class="control-group">
+      <label>Simulation Presets</label>
+      <div class="presets-grid">
+        <button class="preset-btn active" data-preset="cosmic">Orion</button>
+        <button class="preset-btn" data-preset="vortex">Vortex</button>
+        <button class="preset-btn" data-preset="aurora">Aurora</button>
+        <button class="preset-btn" data-preset="supernova">Nova</button>
+      </div>
+    </div>
+
+    <!-- Particle Count -->
+    <div class="control-group">
+      <div class="slider-header">
+        <label for="particleCount">Particles</label>
+        <span class="slider-val" id="particleCountVal">200</span>
+      </div>
+      <input type="range" id="particleCount" min="50" max="500" value="200" step="10">
+    </div>
+    
+    <!-- Attraction Strength -->
+    <div class="control-group">
+      <div class="slider-header">
+        <label for="gravity">Attraction Pull</label>
+        <span class="slider-val" id="gravityVal">0.5</span>
+      </div>
+      <input type="range" id="gravity" min="0" max="1.5" value="0.5" step="0.05">
+    </div>
+
+    <!-- Speed Coefficient -->
+    <div class="control-group">
+      <div class="slider-header">
+        <label for="particleSpeed">Swarm Speed</label>
+        <span class="slider-val" id="particleSpeedVal">1.2</span>
+      </div>
+      <input type="range" id="particleSpeed" min="0.2" max="3" value="1.2" step="0.1">
+    </div>
+
+    <!-- Trail Density -->
+    <div class="control-group">
+      <div class="slider-header">
+        <label for="trailStrength">Trail Duration</label>
+        <span class="slider-val" id="trailStrengthVal">Medium</span>
+      </div>
+      <input type="range" id="trailStrength" min="0.01" max="0.5" value="0.15" step="0.01">
+    </div>
+
+    <!-- Constellations Toggle -->
+    <div class="control-group row-group">
+      <label class="switch-container">
+        <span>Constellation Lines</span>
+        <input type="checkbox" id="constellation" checked>
+        <span class="slider-switch"></span>
+      </label>
+    </div>
+
+    <!-- Repeller Toggle -->
+    <div class="control-group row-group">
+      <label class="switch-container">
+        <span>Reverse Gravity</span>
+        <input type="checkbox" id="repeller">
+        <span class="slider-switch"></span>
+      </label>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- Stats Indicator -->
+    <div class="stats-panel">
+      <div class="stat-item">
+        <span class="stat-label">FPS</span>
+        <span class="stat-value" id="fpsVal">60</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Dust</span>
+        <span class="stat-value" id="activeCount">200</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Bursts</span>
+        <span class="stat-value" id="explosionCount">0</span>
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="actions">
+      <button class="action-btn secondary" id="clearBtn">Clear Spark</button>
+      <button class="action-btn primary" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- Floating Guides Overlay -->
+  <div class="instructions" id="instructions">
+    <span>Click / Tap: Explode</span>
+    <span class="dot">•</span>
+    <span>Drag / Hover: Pull</span>
+    <span class="dot">•</span>
+    <span>[H]: Zen Mode</span>
+  </div>
+
+  <!-- JavaScript Implementation -->
+  <script>
+    // -------------------------------------------------------------
+    // Configuration & State
+    // -------------------------------------------------------------
+    const canvas = document.getElementById('nebulaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Theme Color Palettes (RGB for alpha mapping support)
+    const THEMES = {
+      cosmic: {
+        name: 'Orion',
+        accent: '#a855f7',
+        colors: [
+          { r: 168, g: 85, b: 247 }, // Purple
+          { r: 20, g: 184, b: 166 }, // Teal
+          { r: 244, g: 63, b: 94 }   // Coral
+        ]
+      },
+      vortex: {
+        name: 'Vortex',
+        accent: '#06b6d4',
+        colors: [
+          { r: 6, g: 182, b: 212 },  // Cyan
+          { r: 99, g: 102, b: 241 }, // Indigo
+          { r: 236, g: 72, b: 153 }  // Pink
+        ]
+      },
+      aurora: {
+        name: 'Aurora',
+        accent: '#10b981',
+        colors: [
+          { r: 16, g: 185, b: 129 }, // Emerald
+          { r: 45, g: 212, b: 191 }, // Mint Teal
+          { r: 139, g: 92, b: 246 }  // Bright Purple
+        ]
+      },
+      nova: {
+        name: 'Supernova',
+        accent: '#ef4444',
+        colors: [
+          { r: 239, g: 68, b: 68 },  // Red
+          { r: 249, g: 115, b: 22 }, // Orange
+          { r: 245, g: 158, b: 11 }  // Yellow-gold
+        ]
+      }
+    };
+
+    // Physics Presets mapping
+    const PRESETS = {
+      cosmic: {
+        theme: 'cosmic',
+        particleCount: 200,
+        gravityStrength: 0.5,
+        speedFactor: 1.2,
+        trailStrength: 0.15,
+        constellation: true,
+        repel: false,
+        orbit: 0.15
+      },
+      vortex: {
+        theme: 'vortex',
+        particleCount: 320,
+        gravityStrength: 0.95,
+        speedFactor: 1.6,
+        trailStrength: 0.08,
+        constellation: false,
+        repel: false,
+        orbit: 0.85
+      },
+      aurora: {
+        theme: 'aurora',
+        particleCount: 150,
+        gravityStrength: 0.25,
+        speedFactor: 0.65,
+        trailStrength: 0.04, // long trails
+        constellation: true,
+        repel: false,
+        orbit: 0.0
+      },
+      supernova: {
+        theme: 'nova',
+        particleCount: 250,
+        gravityStrength: 0.7,
+        speedFactor: 2.0,
+        trailStrength: 0.22, // short trails
+        constellation: false,
+        repel: true,
+        orbit: 0.0
+      }
+    };
+
+    // Global Interactive Settings
+    const settings = {
+      theme: 'cosmic',
+      particleCount: 200,
+      gravityStrength: 0.5,
+      speedFactor: 1.2,
+      trailStrength: 0.15,
+      constellation: true,
+      repel: false,
+      orbit: 0.15
+    };
+
+    let activeTheme = THEMES.cosmic;
+    let particles = [];
+    let ripples = [];
+    let explosionsCount = 0;
+    let instructionsFaded = false;
+
+    // Mouse & Touch Tracking State
+    const mouse = {
+      x: 0,
+      y: 0,
+      active: false,
+      radius: 220
+    };
+    let mouseRingRadius = mouse.radius;
+
+    // -------------------------------------------------------------
+    // Canvas Sizing Setup
+    // -------------------------------------------------------------
+    function resizeCanvas() {
+      const oldWidth = canvas.width;
+      const oldHeight = canvas.height;
+      
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Rescale particle positions to match new screen sizes seamlessly
+      if (oldWidth && oldHeight) {
+        particles.forEach(p => {
+          if (!p.isBurst) {
+            p.x = (p.x / oldWidth) * canvas.width;
+            p.y = (p.y / oldHeight) * canvas.height;
+          }
+        });
+      }
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // -------------------------------------------------------------
+    // Particle Physics Class
+    // -------------------------------------------------------------
+    class Particle {
+      constructor(x, y, isBurst = false) {
+        this.x = x !== undefined ? x : Math.random() * canvas.width;
+        this.y = y !== undefined ? y : Math.random() * canvas.height;
+        this.isBurst = isBurst;
+        
+        // Match random color from the current active palette
+        const themeColors = activeTheme.colors;
+        this.colorData = themeColors[Math.floor(Math.random() * themeColors.length)];
+        
+        if (this.isBurst) {
+          // Spark Burst Behavior
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 9 + 4; // high outward velocity
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.size = Math.random() * 2 + 1; // small particles
+          this.alpha = 1.0;
+          this.fadeSpeed = Math.random() * 0.015 + 0.008; // slow fade out
+          this.gravity = 0.06; // ambient vertical gravity pull for spark embers
+        } else {
+          // Regular swarm particles behavior
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 0.4 + 0.15;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.size = Math.random() * 2.2 + 1.2; // varying visual sizes (depth)
+          this.angle = Math.random() * Math.PI * 2; // custom sinusoidal wave drift angle
+          this.angleSpeed = (Math.random() - 0.5) * 0.025;
+        }
+      }
+
+      update() {
+        if (this.isBurst) {
+          this.vy += this.gravity; // apply subtle downward drop
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vx *= 0.97; // slow decelerations
+          this.vy *= 0.97;
+          this.alpha -= this.fadeSpeed;
+        } else {
+          // Regular drifting particles
+          this.angle += this.angleSpeed;
+          
+          let driftX = Math.sin(this.angle) * 0.04 * settings.speedFactor;
+          let driftY = Math.cos(this.angle) * 0.04 * settings.speedFactor;
+          
+          // Aurora theme creates sideways waving bands
+          if (settings.theme === 'aurora') {
+            driftX = (0.2 + Math.sin(this.angle) * 0.08) * settings.speedFactor;
+            driftY = Math.cos(this.angle) * 0.03 * settings.speedFactor;
+          }
+          
+          this.vx += driftX;
+          this.vy += driftY;
+
+          // Handle Attraction Interaction
+          if (mouse.active) {
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < mouse.radius) {
+              // Smooth proportional field force
+              const force = (1 - dist / mouse.radius) * settings.gravityStrength;
+
+              if (settings.repel) {
+                // Reverse Gravity (Push out)
+                this.vx -= (dx / dist) * force * 1.6;
+                this.vy -= (dy / dist) * force * 1.6;
+              } else {
+                // Radial attraction pull
+                this.vx += (dx / dist) * force;
+                this.vy += (dy / dist) * force;
+
+                // Orbit tangential swirling force
+                if (settings.orbit > 0) {
+                  const tx = -dy / dist;
+                  const ty = dx / dist;
+                  this.vx += tx * force * settings.orbit;
+                  this.vy += ty * force * settings.orbit;
+                }
+              }
+            }
+          }
+
+          // Ambient damping friction
+          this.vx *= 0.965;
+          this.vy *= 0.965;
+
+          // Clamp speeds based on settings to avoid hyper acceleration
+          const speed = Math.hypot(this.vx, this.vy);
+          const maxSpeed = 4.5 * settings.speedFactor;
+          if (speed > maxSpeed) {
+            this.vx = (this.vx / speed) * maxSpeed;
+            this.vy = (this.vy / speed) * maxSpeed;
+          }
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // Wrapping screen edges
+          const margin = 20;
+          if (this.x < -margin) this.x = canvas.width + margin;
+          if (this.x > canvas.width + margin) this.x = -margin;
+          if (this.y < -margin) this.y = canvas.height + margin;
+          if (this.y > canvas.height + margin) this.y = -margin;
+        }
+      }
+
+      draw() {
+        if (this.isBurst && this.alpha <= 0) return;
+        const opacity = this.isBurst ? this.alpha : 0.85;
+
+        // Visual optimization: Draw multi-layer opacity circles rather than ctx.shadowBlur
+        // Layer 1: Ambient outer glow
+        ctx.fillStyle = `rgba(${this.colorData.r}, ${this.colorData.g}, ${this.colorData.b}, ${opacity * 0.16})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Layer 2: Glowing core
+        ctx.fillStyle = `rgba(${this.colorData.r}, ${this.colorData.g}, ${this.colorData.b}, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // Swarm Setup & Spawning
+    // -------------------------------------------------------------
+    function adjustParticleCount(targetCount) {
+      const currentCount = particles.filter(p => !p.isBurst).length;
+      if (targetCount > currentCount) {
+        for (let i = 0; i < targetCount - currentCount; i++) {
+          particles.push(new Particle());
+        }
+      } else if (targetCount < currentCount) {
+        let removed = 0;
+        for (let i = particles.length - 1; i >= 0; i--) {
+          if (!particles[i].isBurst) {
+            particles.splice(i, 1);
+            removed++;
+            if (removed >= currentCount - targetCount) break;
+          }
+        }
+      }
+      document.getElementById('activeCount').textContent = targetCount;
+    }
+
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < settings.particleCount; i++) {
+        particles.push(new Particle());
+      }
+      document.getElementById('activeCount').textContent = settings.particleCount;
+    }
+
+    // Initialize Swarm
+    initParticles();
+
+    // -------------------------------------------------------------
+    // Interactions: Click Explosion & Ripples
+    // -------------------------------------------------------------
+    function createExplosion(x, y) {
+      // Physical Push: Apply sudden impulse to all particles nearby
+      particles.forEach(p => {
+        if (p.isBurst) return;
+        const dx = p.x - x;
+        const dy = p.y - y;
+        const dist = Math.hypot(dx, dy);
+        const impulseRadius = 260;
+        
+        if (dist < impulseRadius) {
+          // Strong outward kick relative to closeness
+          const factor = (1 - dist / impulseRadius);
+          const force = factor * 14 * settings.speedFactor;
+          const angle = dist === 0 ? Math.random() * Math.PI * 2 : Math.atan2(dy, dx);
+          
+          p.vx += Math.cos(angle) * force;
+          p.vy += Math.sin(angle) * force;
+        }
+      });
+
+      // Spawn temporary spark burst particles
+      const burstSize = 65;
+      for (let i = 0; i < burstSize; i++) {
+        particles.push(new Particle(x, y, true));
+      }
+
+      // Add a expanding wave ripple
+      ripples.push({
+        x: x,
+        y: y,
+        radius: 0,
+        maxRadius: 160,
+        alpha: 1.0,
+        speed: 3.5
+      });
+
+      // Shrink mouse interaction ring on click for tactile click feel
+      mouseRingRadius = 40;
+
+      explosionsCount++;
+      document.getElementById('explosionCount').textContent = explosionsCount;
+    }
+
+    // -------------------------------------------------------------
+    // Preset Application Logic
+    // -------------------------------------------------------------
+    function applyPreset(presetName) {
+      const config = PRESETS[presetName];
+      if (!config) return;
+
+      // Update preset toggle buttons in the HUD
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === presetName);
+      });
+
+      // Set global configuration
+      settings.theme = config.theme;
+      activeTheme = THEMES[config.theme];
+      
+      settings.particleCount = config.particleCount;
+      settings.gravityStrength = config.gravityStrength;
+      settings.speedFactor = config.speedFactor;
+      settings.trailStrength = config.trailStrength;
+      settings.constellation = config.constellation;
+      settings.repel = config.repel;
+      settings.orbit = config.orbit;
+
+      // Synchronize HUD sliders and indicators
+      document.getElementById('particleCount').value = settings.particleCount;
+      document.getElementById('particleCountVal').textContent = settings.particleCount;
+      
+      document.getElementById('gravity').value = settings.gravityStrength;
+      document.getElementById('gravityVal').textContent = settings.gravityStrength;
+      
+      document.getElementById('particleSpeed').value = settings.speedFactor;
+      document.getElementById('particleSpeedVal').textContent = settings.speedFactor;
+      
+      document.getElementById('trailStrength').value = settings.trailStrength;
+      updateTrailLabel(settings.trailStrength);
+      
+      document.getElementById('constellation').checked = settings.constellation;
+      document.getElementById('repeller').checked = settings.repel;
+
+      // Update theme indicators and badges
+      document.getElementById('themeBadge').textContent = activeTheme.name;
+
+      // Update CSS variables for layout colors
+      document.documentElement.style.setProperty('--theme-accent', activeTheme.accent);
+      document.documentElement.style.setProperty('--theme-accent-rgb', `${activeTheme.colors[0].r}, ${activeTheme.colors[0].g}, ${activeTheme.colors[0].b}`);
+
+      // Re-adjust particle array to match target size
+      adjustParticleCount(settings.particleCount);
+
+      // Mutate current particles colors to the new theme
+      particles.forEach(p => {
+        if (!p.isBurst) {
+          const themeColors = activeTheme.colors;
+          p.colorData = themeColors[Math.floor(Math.random() * themeColors.length)];
+        }
+      });
+    }
+
+    function updateTrailLabel(val) {
+      let label = "Medium";
+      if (val <= 0.03) label = "Infinite";
+      else if (val <= 0.08) label = "Long";
+      else if (val <= 0.18) label = "Medium";
+      else if (val <= 0.32) label = "Short";
+      else label = "None";
+      document.getElementById('trailStrengthVal').textContent = label;
+    }
+
+    // -------------------------------------------------------------
+    // User Control Event Handlers
+    // -------------------------------------------------------------
+    document.getElementById('particleCount').addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById('particleCountVal').textContent = val;
+      settings.particleCount = val;
+      adjustParticleCount(val);
+    });
+
+    document.getElementById('gravity').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      document.getElementById('gravityVal').textContent = val;
+      settings.gravityStrength = val;
+    });
+
+    document.getElementById('particleSpeed').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      document.getElementById('particleSpeedVal').textContent = val;
+      settings.speedFactor = val;
+    });
+
+    document.getElementById('trailStrength').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      settings.trailStrength = val;
+      updateTrailLabel(val);
+    });
+
+    document.getElementById('constellation').addEventListener('change', (e) => {
+      settings.constellation = e.target.checked;
+    });
+
+    document.getElementById('repeller').addEventListener('change', (e) => {
+      settings.repel = e.target.checked;
+    });
+
+    // Preset Selection Handlers
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        applyPreset(btn.dataset.preset);
+      });
+    });
+
+    // Secondary controls
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      particles = particles.filter(p => !p.isBurst);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      applyPreset('cosmic');
+    });
+
+    // -------------------------------------------------------------
+    // HUD Visibility Toggles
+    // -------------------------------------------------------------
+    const controlPanel = document.getElementById('controlPanel');
+    const fabBtn = document.getElementById('fabBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    function togglePanel() {
+      const isHidden = controlPanel.classList.toggle('hidden');
+      fabBtn.classList.toggle('visible', isHidden);
+    }
+
+    closeBtn.addEventListener('click', togglePanel);
+    fabBtn.addEventListener('click', togglePanel);
+
+    // Keyboard Zen shortcut [H]
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'h' || e.key === 'H') {
+        togglePanel();
+      }
+    });
+
+    // -------------------------------------------------------------
+    // Input Listeners: Mouse & Touch
+    // -------------------------------------------------------------
+    function fadeInstructions() {
+      if (!instructionsFaded) {
+        document.getElementById('instructions').classList.add('hidden');
+        instructionsFaded = true;
+      }
+    }
+
+    canvas.addEventListener('mouseenter', () => {
+      mouse.active = true;
+      fadeInstructions();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      mouse.active = true;
+      fadeInstructions();
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      mouse.active = false;
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (e.target !== canvas) return;
+      createExplosion(e.clientX, e.clientY);
+    });
+
+    // Touch Support for Mobile
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.target !== canvas) return;
+      fadeInstructions();
+      const touch = e.touches[0];
+      mouse.x = touch.clientX;
+      mouse.y = touch.clientY;
+      mouse.active = true;
+      createExplosion(touch.clientX, touch.clientY);
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.target !== canvas) return;
+      const touch = e.touches[0];
+      mouse.x = touch.clientX;
+      mouse.y = touch.clientY;
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      mouse.active = false;
+    });
+
+    canvas.addEventListener('touchcancel', () => {
+      mouse.active = false;
+    });
+
+    // -------------------------------------------------------------
+    // Main Simulation Render Loop
+    // -------------------------------------------------------------
+    let lastTime = 0;
+    let fpsFrameCount = 0;
+    let fps = 60;
+    let lastFpsUpdate = 0;
+
+    function renderLoop(timestamp) {
+      // 1. Calculate FPS
+      if (!lastTime) {
+        lastTime = timestamp;
+        lastFpsUpdate = timestamp;
+      } else {
+        fpsFrameCount++;
+        if (timestamp - lastFpsUpdate >= 500) {
+          fps = Math.round((fpsFrameCount * 1000) / (timestamp - lastFpsUpdate));
+          fpsFrameCount = 0;
+          lastFpsUpdate = timestamp;
+          document.getElementById('fpsVal').textContent = fps;
+        }
+        lastTime = timestamp;
+      }
+
+      // 2. Draw Trails Background
+      ctx.fillStyle = `rgba(10, 10, 15, ${settings.trailStrength})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 3. Draw Dynamic Constellation Network Links
+      if (settings.constellation) {
+        const regularParticles = particles.filter(p => !p.isBurst);
+        const maxDist = 80;
+        const maxDistSq = maxDist * maxDist;
+
+        for (let i = 0; i < regularParticles.length; i++) {
+          const p1 = regularParticles[i];
+          for (let j = i + 1; j < regularParticles.length; j++) {
+            const p2 = regularParticles[j];
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const distSq = dx*dx + dy*dy;
+
+            if (distSq < maxDistSq) {
+              const d = Math.sqrt(distSq);
+              const alpha = (1 - d / maxDist) * 0.14; // fade line with distance
+              
+              // Interpolated gradient stroke style
+              ctx.strokeStyle = `rgba(${p1.colorData.r}, ${p1.colorData.g}, ${p1.colorData.b}, ${alpha})`;
+              ctx.lineWidth = 0.55;
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // 4. Draw Cursor Connections if Pulling Swarm
+      if (mouse.active && settings.constellation && !settings.repel) {
+        const maxMouseDist = 120;
+        const maxMouseDistSq = maxMouseDist * maxMouseDist;
+        
+        particles.forEach(p => {
+          if (p.isBurst) return;
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const distSq = dx*dx + dy*dy;
+
+          if (distSq < maxMouseDistSq) {
+            const dist = Math.sqrt(distSq);
+            const alpha = (1 - dist / maxMouseDist) * 0.28;
+            ctx.strokeStyle = `rgba(${p.colorData.r}, ${p.colorData.g}, ${p.colorData.b}, ${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(mouse.x, mouse.y);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+          }
+        });
+      }
+
+      // 5. Update & Draw Particles (garbage collect decayed sparks)
+      particles = particles.filter(p => !p.isBurst || p.alpha > 0);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      // 6. Update & Draw Shockwave Ripples
+      ripples.forEach((r, index) => {
+        r.radius += r.speed;
+        r.alpha -= 0.024;
+        
+        if (r.alpha <= 0) {
+          ripples.splice(index, 1);
+          return;
+        }
+
+        ctx.strokeStyle = `rgba(${activeTheme.colors[0].r}, ${activeTheme.colors[0].g}, ${activeTheme.colors[0].b}, ${r.alpha * 0.38})`;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      // 7. Draw Mouse Aura / Attraction radius Ring
+      if (mouse.active) {
+        // Interpolate mouse ring radius back to base mouse radius from clicked state
+        mouseRingRadius += (mouse.radius - mouseRingRadius) * 0.12;
+
+        ctx.strokeStyle = `rgba(${activeTheme.colors[0].r}, ${activeTheme.colors[0].g}, ${activeTheme.colors[0].b}, 0.04)`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, mouseRingRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(${activeTheme.colors[0].r}, ${activeTheme.colors[0].g}, ${activeTheme.colors[0].b}, 0.12)`;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Start Simulation Loop
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>

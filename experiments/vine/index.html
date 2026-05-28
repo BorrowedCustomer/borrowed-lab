@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vines - Generative Art</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0a0a0f;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Minimal Top-Left Back Link */
+    .back-link {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.4);
+      text-decoration: none;
+      z-index: 10;
+      transition: color 0.2s ease;
+      letter-spacing: -0.01em;
+    }
+
+    .back-link:hover {
+      color: #ffffff;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Back Link -->
+  <a href="../../index.html" class="back-link">↩ back</a>
+
+  <!-- Generative Canvas -->
+  <canvas id="vineCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('vineCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Color Palette: Deep forest greens, organic emeralds, and muted teals
+    const PALETTE = [
+      '#1a3a2a', // Deep forest green
+      '#2d6a4f', // Emerald green
+      '#40916c', // Foliage green
+      '#52b788', // Active growth green
+      '#74c69d', // Mint teal green
+      '#2a9d8f'  // Muted organic teal
+    ];
+
+    let activeBranches = [];
+    let state = 'growing'; // 'growing' | 'resting' | 'fading'
+    let transitionTimer = 0;
+
+    // Resizing setup
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Fill canvas background
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Re-initialize vine particles when screen size triggers a change
+      initVines();
+      state = 'growing';
+    }
+
+    // Leaf rendering helper
+    function drawLeaf(ctx, x, y, angle, size, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      
+      // Draw smooth organic curved leaf geometry
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(size, -size / 1.4, size * 2.2, 0);
+      ctx.quadraticCurveTo(size, size / 1.4, 0, 0);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+
+    // Individual Vine Branch Class
+    class Branch {
+      constructor(x, y, angle, gen = 0, width = 1.8) {
+        this.x = x;
+        this.y = y;
+        this.prevX = x;
+        this.prevY = y;
+        this.angle = angle;
+        this.generation = gen;
+        this.width = width;
+        
+        // Randomly assign a color from the organic palette
+        this.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+        
+        // Slow speed for fluid visual growth
+        this.speed = Math.random() * 0.7 + 0.6;
+        
+        // Natural step count limit for this branch generation
+        this.life = Math.random() * 110 + 90 - (gen * 8);
+        this.steps = 0;
+      }
+
+      update() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+        
+        // Micro-wobble to simulate natural vine curves
+        this.angle += (Math.random() - 0.5) * 0.12;
+        
+        // Apply forward step
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        
+        this.steps++;
+        this.life--;
+      }
+
+      draw() {
+        // Calculate thinning and fading based on generation depth
+        const genFactor = (1 - this.generation / 6);
+        const opacity = Math.max(0.15, genFactor);
+        
+        ctx.strokeStyle = this.color;
+        ctx.globalAlpha = opacity;
+        ctx.lineWidth = Math.max(0.4, this.width * genFactor);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.beginPath();
+        ctx.moveTo(this.prevX, this.prevY);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+        
+        ctx.globalAlpha = 1.0; // restore default
+
+        // Grow tiny leaves periodically along the path
+        if (Math.random() < 0.04 && this.steps > 15) {
+          const sideAngle = this.angle + (Math.random() < 0.5 ? Math.PI / 3.2 : -Math.PI / 3.2);
+          const leafSize = Math.random() * 2 + 1.2;
+          const leafColor = PALETTE[4]; // brighter mint teal for leaves
+          drawLeaf(ctx, this.x, this.y, sideAngle, leafSize, leafColor);
+        }
+      }
+    }
+
+    // Initialize seed nodes
+    function initVines() {
+      activeBranches = [];
+      
+      // Grow from 3 to 5 random seed points
+      const seedCount = Math.floor(Math.random() * 3) + 3;
+      
+      for (let i = 0; i < seedCount; i++) {
+        // Keep seed points safely within viewport boundaries
+        const x = Math.random() * (canvas.width * 0.75) + (canvas.width * 0.125);
+        const y = Math.random() * (canvas.height * 0.75) + (canvas.height * 0.125);
+        
+        // Generate 2 to 3 branches going outwards radially from each seed point
+        const initialBranches = Math.floor(Math.random() * 2) + 2;
+        const baseAngle = Math.random() * Math.PI * 2;
+        
+        for (let j = 0; j < initialBranches; j++) {
+          const angle = baseAngle + (j * (Math.PI * 2 / initialBranches)) + (Math.random() - 0.5) * 0.2;
+          activeBranches.push(new Branch(x, y, angle, 0, 1.8));
+        }
+      }
+    }
+
+    // Main Loop
+    function loop() {
+      if (state === 'growing') {
+        for (let i = activeBranches.length - 1; i >= 0; i--) {
+          const b = activeBranches[i];
+          b.update();
+          b.draw();
+
+          // End branch if it hits edge or finishes life
+          const margin = 40;
+          const isOffscreen = b.x < -margin || b.x > canvas.width + margin || b.y < -margin || b.y > canvas.height + margin;
+
+          if (b.life <= 0 || isOffscreen) {
+            // Draw a final leaf cluster at the tip if inside canvas
+            if (!isOffscreen) {
+              const leafColor = PALETTE[4];
+              drawLeaf(ctx, b.x, b.y, b.angle + Math.PI / 4, 3, leafColor);
+              drawLeaf(ctx, b.x, b.y, b.angle - Math.PI / 4, 3, leafColor);
+            }
+            
+            activeBranches.splice(i, 1);
+            continue;
+          }
+
+          // Branching / Splitting
+          // Throttle split to avoid exponential slowdown (max active branches capped at 24)
+          const canSplit = b.generation < 5 && activeBranches.length < 24;
+          const splitChance = 0.015 / (b.generation + 1);
+
+          if (canSplit && b.steps > 25 && Math.random() < splitChance) {
+            const splitAngle = Math.random() * 0.18 + 0.18; // 10 to 20 degree split
+            
+            // Push twin child branches
+            activeBranches.push(new Branch(b.x, b.y, b.angle + splitAngle, b.generation + 1, b.width));
+            activeBranches.push(new Branch(b.x, b.y, b.angle - splitAngle, b.generation + 1, b.width));
+            
+            // Dequeue parent branch
+            activeBranches.splice(i, 1);
+          }
+        }
+
+        // Transition to rest when all vines complete growth
+        if (activeBranches.length === 0) {
+          state = 'resting';
+          transitionTimer = Date.now();
+        }
+      } 
+      else if (state === 'resting') {
+        // Show complete art piece for 3.5 seconds
+        if (Date.now() - transitionTimer > 3500) {
+          state = 'fading';
+          transitionTimer = Date.now();
+        }
+      } 
+      else if (state === 'fading') {
+        // Draw low-alpha backdrop rectangle to create fading dissolve trails
+        ctx.fillStyle = 'rgba(10, 10, 15, 0.015)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // After 2.5 seconds, reset fully and grow new seeds
+        if (Date.now() - transitionTimer > 2500) {
+          ctx.fillStyle = '#0a0a0f';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          initVines();
+          state = 'growing';
+        }
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // Set up events & start loop
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Initial draw
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    initVines();
+    
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

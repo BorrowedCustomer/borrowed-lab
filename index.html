@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BORROWED LAB.</title>
+  <style>
+    /* Reset & Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0a0a0f;
+      color: #ffffff;
+      /* Custom high-end monospace stack defaulting to system monospace, falling back to Courier New */
+      font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Minimal Reading Container */
+    .container {
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 120px 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Section */
+    header {
+      margin-bottom: 80px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .description {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 12px;
+    }
+
+    .home-link {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.4);
+      text-decoration: none;
+      display: inline-block;
+      transition: color 0.2s ease;
+    }
+
+    .home-link:hover {
+      color: #ffffff;
+    }
+
+    /* Spacing: Generous vertical whitespace between sections */
+    .category-section {
+      margin-bottom: 64px;
+    }
+
+    .category-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.25);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+      border: none;
+    }
+
+    /* Text-only list layout */
+    .experiment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .experiment-item {
+      font-size: 0.95rem;
+    }
+
+    .experiment-item a {
+      color: #ffffff;
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s ease;
+    }
+
+    /* Hover effect: Subtle underline or opacity increase */
+    .experiment-item a:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    /* Locked Coming Soon text styling */
+    .experiment-item.locked {
+      color: rgba(255, 255, 255, 0.25);
+      cursor: default;
+    }
+
+    /* Footer Styles */
+    footer {
+      margin-top: auto;
+      padding-top: 80px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.25);
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <h1>BORROWED LAB.</h1>
+      <p class="description">A place for experimentation and creation.</p>
+      <a href="#" class="home-link">← borrowedpage.kr</a>
+    </header>
+
+    <!-- Main Content Container for sections -->
+    <main id="mainContent"></main>
+
+    <!-- Footer -->
+    <footer>
+      <span>© 2025 BORROWED PAGE.</span>
+    </footer>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // Experiments Array Registry
+    // Add new items here to populate the portfolio dynamically.
+    // -------------------------------------------------------------
+    const EXPERIMENTS = [
+      {
+        category: "PARTICLE",
+        title: "Nebula",
+        url: "./experiments/nebula/index.html",
+        locked: false
+      },
+      {
+        category: "GENERATIVE",
+        title: "Vines",
+        url: "./experiments/vine/index.html",
+        locked: false
+      },
+      {
+        category: "COMING SOON",
+        title: "Lightspeed",
+        url: "",
+        locked: true
+      },
+      {
+        category: "COMING SOON",
+        title: "Graviton",
+        url: "",
+        locked: true
+      }
+    ];
+
+    // -------------------------------------------------------------
+    // Grouping & Rendering
+    // -------------------------------------------------------------
+    const main = document.getElementById('mainContent');
+    const groups = {};
+
+    // Group items sequentially preserving order
+    EXPERIMENTS.forEach(exp => {
+      if (!groups[exp.category]) {
+        groups[exp.category] = [];
+      }
+      groups[exp.category].push(exp);
+    });
+
+    // Render grouped categories dynamically
+    let categoryIndex = 1;
+    for (const category in groups) {
+      const items = groups[category];
+      const countStr = String(categoryIndex).padStart(3, '0');
+      categoryIndex++;
+      
+      const section = document.createElement('section');
+      section.className = 'category-section';
+      
+      let itemsHTML = '';
+      items.forEach(item => {
+        if (item.locked) {
+          itemsHTML += `<div class="experiment-item locked">${item.title}</div>`;
+        } else {
+          itemsHTML += `<div class="experiment-item"><a href="${item.url}">${item.title}</a></div>`;
+        }
+      });
+      
+      section.innerHTML = `
+        <h2 class="category-header">${category}, ${countStr}</h2>
+        <div class="experiment-list">
+          ${itemsHTML}
+        </div>
+      `;
+      
+      main.appendChild(section);
+    }
+  </script>
+</body>
+</html>
