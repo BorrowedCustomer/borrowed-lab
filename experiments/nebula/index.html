@@ -483,7 +483,7 @@
     /* Hide Controls Indicator at Right-top */
     .zen-indicator {
       position: absolute;
-      top: 24px;
+      top: 56px;
       right: 24px;
       font-size: 0.65rem;
       color: var(--text-secondary);
@@ -491,6 +491,28 @@
       z-index: 2;
       pointer-events: none;
       letter-spacing: 0.05em;
+    }
+
+    /* Back Link to Main Portal */
+    .back-link {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      text-decoration: none;
+      z-index: 12;
+      transition: color 0.2s ease, opacity 0.2s ease;
+      letter-spacing: -0.01em;
+      font-family: var(--font-body);
+    }
+
+    .back-link:hover {
+      color: var(--text-primary);
+      opacity: 1.0;
+      text-decoration: underline;
+      text-underline-offset: 4px;
     }
 
     /* Responsive scaling */
@@ -522,6 +544,9 @@
   </style>
 </head>
 <body>
+
+  <!-- Back Link to Main Portal -->
+  <a href="../../index.html" class="back-link">↩ back</a>
 
   <!-- Background Watermark -->
   <div class="watermark">Nebula</div>

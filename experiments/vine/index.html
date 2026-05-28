@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vines - Generative Art</title>
+  <title>Pulse - Kinetic Generative Clock</title>
   <style>
     * {
       box-sizing: border-box;
@@ -12,7 +12,7 @@
     }
 
     body {
-      background-color: #0a0a0f;
+      background-color: #000000;
       overflow: hidden;
       width: 100vw;
       height: 100vh;
@@ -35,7 +35,7 @@
       top: 24px;
       left: 24px;
       font-size: 0.8rem;
-      color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.45);
       text-decoration: none;
       z-index: 10;
       transition: color 0.2s ease;
@@ -47,235 +47,527 @@
       text-decoration: underline;
       text-underline-offset: 4px;
     }
+
+    /* Small Digital Time Translation Key at bottom right */
+    .digital-clock {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      font-size: 11px;
+      color: #ffffff;
+      opacity: 0.35;
+      z-index: 10;
+      letter-spacing: 0.05em;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Back Link -->
+  <!-- Back Button Link -->
   <a href="../../index.html" class="back-link">↩ back</a>
 
-  <!-- Generative Canvas -->
-  <canvas id="vineCanvas"></canvas>
+  <!-- Tiny Digital Time Readout -->
+  <div class="digital-clock" id="digitalClock">00:00:00</div>
+
+  <!-- Pulse Canvas -->
+  <canvas id="pulseCanvas"></canvas>
 
   <script>
-    const canvas = document.getElementById('vineCanvas');
+    const canvas = document.getElementById('pulseCanvas');
     const ctx = canvas.getContext('2d');
+    const digitalClock = document.getElementById('digitalClock');
 
-    // Color Palette: Deep forest greens, organic emeralds, and muted teals
-    const PALETTE = [
-      '#1a3a2a', // Deep forest green
-      '#2d6a4f', // Emerald green
-      '#40916c', // Foliage green
-      '#52b788', // Active growth green
-      '#74c69d', // Mint teal green
-      '#2a9d8f'  // Muted organic teal
-    ];
+    const accentColor = '#FF3366'; // Second pulse/Hours Core active color
+    const ripples = [];
+    const particles = [];
+    const sparks = [];
+    const particleCount = 200; // Increased to 200
 
-    let activeBranches = [];
-    let state = 'growing'; // 'growing' | 'resting' | 'fading'
-    let transitionTimer = 0;
+    let prevSecondDotIndex = -1;
+    let prevMinute = -1;
+    let lastSparkTime = 0;
+
+    // Helper: double-digit padding
+    function pad(num) {
+      return String(num).padStart(2, '0');
+    }
+
+    // 6-Line Star burst for seconds hand tip
+    function drawStarBurst(ctx, x, y, size, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath();
+      
+      // Draw 6 radiating spikes (every 60 degrees)
+      for (let i = 0; i < 6; i++) {
+        const angle = i * (Math.PI / 3);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * size, y + Math.sin(angle) * size);
+      }
+      ctx.stroke();
+
+      // White core
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 1.0;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Ambient Particle Class with pulsing size and connection lines
+    class Particle {
+      constructor() {
+        this.x = Math.random() * window.innerWidth;
+        this.y = Math.random() * window.innerHeight;
+        this.targetX = this.x;
+        this.targetY = this.y;
+        this.speed = Math.random() * 0.005 + 0.0025;
+        this.baseSize = Math.random() * 0.8 + 1.2;
+        // Opacity kept above 0.12 globally
+        this.opacity = Math.random() * 0.06 + 0.12; 
+      }
+
+      reseed(minute, second, index) {
+        const seedX = minute + index * 145.67;
+        const seedY = second + index * 321.09;
+        
+        const rx = Math.abs(Math.sin(seedX) * 1000) % 1;
+        const ry = Math.abs(Math.cos(seedY) * 1000) % 1;
+        
+        this.targetX = rx * canvas.width;
+        this.targetY = ry * canvas.height;
+      }
+
+      update() {
+        this.x += (this.targetX - this.x) * this.speed;
+        this.y += (this.targetY - this.y) * this.speed;
+      }
+
+      draw(time) {
+        // Size pulses with global sine wave
+        const sizePulse = Math.sin(time * 2.0 + this.x * 0.01) * 0.45;
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.6, this.baseSize + sizePulse), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Initialize particles
+    function initParticles() {
+      particles.length = 0;
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+    }
 
     // Resizing setup
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      // Fill canvas background
-      ctx.fillStyle = '#0a0a0f';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Re-initialize vine particles when screen size triggers a change
-      initVines();
-      state = 'growing';
+      const now = new Date();
+      particles.forEach((p, idx) => p.reseed(now.getMinutes(), now.getSeconds(), idx));
     }
 
-    // Leaf rendering helper
-    function drawLeaf(ctx, x, y, angle, size, color) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.fillStyle = color;
+    // Animation loop
+    function animate(timestamp) {
+      // 1. Clear background to pure black
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const now = new Date();
+      const hours = now.getHours(); 
+      const minutes = now.getMinutes(); 
+      const seconds = now.getSeconds(); 
+      const ms = now.getMilliseconds();
+
+      const timeInSec = timestamp * 0.001;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const minDimension = Math.min(canvas.width, canvas.height);
+
+      // Fractional coordinates
+      const fractionalSecond = seconds + ms / 1000;
+      const fractionalMinute = (minutes + fractionalSecond / 60) / 60;
+      const fractionalHour = (hours + minutes / 60 + fractionalSecond / 3600) / 24;
+
+      // Update Digital Readout
+      digitalClock.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+      // 2. Set screen blend mode for glowing compositions
+      ctx.globalCompositeOperation = 'screen';
+
+      // ==========================================
+      // ELEMENT 5: AMBIENT PARTICLES (drawn in viewport space)
+      // ==========================================
+      if (minutes !== prevMinute) {
+        particles.forEach((p, idx) => p.reseed(minutes, seconds, idx));
+        prevMinute = minutes;
+      }
       
-      // Draw smooth organic curved leaf geometry
+      particles.forEach(p => {
+        p.update();
+        p.draw(timeInSec);
+      });
+
+      // Draw faint connections between nearby particles (within 80px, opacity 0.12 minimum)
+      for (let i = 0; i < particles.length; i++) {
+        const p1 = particles[i];
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const distSq = dx*dx + dy*dy;
+          const maxDist = 80;
+          const maxDistSq = maxDist * maxDist;
+
+          if (distSq < maxDistSq) {
+            const d = Math.sqrt(distSq);
+            // Opacity scales up to 0.18, starting at 0.12 to meet baseline requirements
+            const alpha = 0.12 + (1 - d / maxDist) * 0.06;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 0.45;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // ==========================================
+      // CLOCK ROTATING BASE SPACE
+      // ==========================================
+      // Entire canvas slowly rotates 360 degrees over 24 hours
+      const globalRotationAngle = fractionalHour * Math.PI * 2;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(globalRotationAngle);
+
+      // ==========================================
+      // ELEMENT 1: SECONDS RING (Double density: 120 dots)
+      // ==========================================
+      const R1 = minDimension * 0.42;
+      const activeDotIndex = Math.floor((fractionalSecond / 60) * 120) % 120;
+
+      // Trigger staggered triple ripple on active index shift
+      if (activeDotIndex !== prevSecondDotIndex) {
+        const theta_s = activeDotIndex * (Math.PI * 2 / 120) - Math.PI / 2;
+        const rx = Math.cos(theta_s) * R1;
+        const ry = Math.sin(theta_s) * R1;
+
+        // Push 3 staggered ripples
+        ripples.push({ x: rx, y: ry, startTime: Date.now(), delay: 0 });
+        ripples.push({ x: rx, y: ry, startTime: Date.now(), delay: 200 });
+        ripples.push({ x: rx, y: ry, startTime: Date.now(), delay: 400 });
+
+        prevSecondDotIndex = activeDotIndex;
+      }
+
+      // Connect adjacent dots with thin outline (opacity 0.12 minimum)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 0.55;
+      ctx.beginPath();
+      for (let i = 0; i < 120; i++) {
+        const theta = i * (Math.PI * 2 / 120) - Math.PI / 2;
+        const x = Math.cos(theta) * R1;
+        const y = Math.sin(theta) * R1;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Render 120 dots
+      for (let i = 0; i < 120; i++) {
+        const theta = i * (Math.PI * 2 / 120) - Math.PI / 2;
+        const x = Math.cos(theta) * R1;
+        const y = Math.sin(theta) * R1;
+
+        // Individual sine size breathing (amplitude 3px)
+        const sizePulse = Math.sin(timeInSec * 2.5 + i * 0.08) * 1.5; // range [-1.5, 1.5] (amplitude 3px total)
+
+        let baseRadius = 2.0;
+        let opacity = 0.15;
+
+        const distBehind = (activeDotIndex - i + 120) % 120;
+
+        if (i === activeDotIndex) {
+          baseRadius = 12.0;
+          opacity = 1.0;
+        } else if (distBehind > 0 && distBehind <= 20) {
+          // Last 20 seconds visible with gradient fade (above 0.12)
+          baseRadius = 4.0;
+          opacity = 0.12 + 0.48 * (1 - distBehind / 20);
+        } else {
+          // Future dots (above 0.12)
+          baseRadius = 1.8;
+          opacity = 0.15;
+        }
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(0.5, baseRadius + sizePulse), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Update & Draw ripples
+      const nowTime = Date.now();
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        const elapsed = nowTime - r.startTime;
+        
+        if (elapsed < r.delay) continue; // wait for delay slot
+        
+        const activeElapsed = elapsed - r.delay;
+        if (activeElapsed > 1000) {
+          ripples.splice(i, 1);
+          continue;
+        }
+
+        const progress = activeElapsed / 1000;
+        const size = 12.0 + progress * 55.0; // expand ripple
+        const opacity = 0.12 + 0.88 * (1.0 - progress); // fade out (above 0.12 minimum)
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.28})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, size, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // ==========================================
+      // ELEMENT 2: MINUTES SPIRAL (Wavy Bezier Curves)
+      // ==========================================
+      const L_max = minDimension * 0.35;
+      const L_min = minDimension * 0.20;
+      const spiralBaseRotation = fractionalMinute * Math.PI * 2;
+
+      // Draw two spiral layers (main and secondary offset by 30 deg)
+      const layers = [
+        { rotOffset: 0, alphaScale: 1.0 },
+        { rotOffset: 30 * Math.PI / 180, alphaScale: 0.35 } // 30 degrees offset
+      ];
+
+      layers.forEach(layer => {
+        for (let j = 0; j < 60; j++) {
+          const baseAngle = j * (Math.PI * 2 / 60) - Math.PI / 2;
+          const finalAngle = baseAngle + spiralBaseRotation + layer.rotOffset;
+
+          const distBehind = (minutes - j + 60) % 60;
+
+          // Line base length and oscillation
+          let length = L_min + (1 - distBehind / 59) * (L_max - L_min);
+          const breath = Math.sin(timeInSec * 2.0 + j * 0.12) * 5.0;
+          length += breath;
+
+          // Target point
+          const ex = Math.cos(finalAngle) * length;
+          const ey = Math.sin(finalAngle) * length;
+
+          // Midpoint
+          const mx = ex / 2;
+          const my = ey / 2;
+
+          // Perpendicular offset vector for bezier tentacle wave
+          const px = -Math.sin(finalAngle);
+          const py = Math.cos(finalAngle);
+          const offset = Math.sin(timeInSec * 1.5 + j * 0.25) * 30.0; // waving control point
+          const cpX = mx + px * offset;
+          const cpY = my + py * offset;
+
+          // Width varies (above 0.12 limit)
+          let strokeW = 0.3 + (1 - distBehind / 59) * 0.7; // taper to 0.3px
+          let opacity = 0.12 + 0.33 * (1 - distBehind / 59);
+
+          if (j === minutes) {
+            strokeW = 2.0;
+            opacity = 0.95;
+          }
+
+          // Shifting color to blue tint (#e0f0ff) on recent minutes
+          const isRecent = distBehind <= 10;
+          ctx.strokeStyle = isRecent 
+            ? `rgba(224, 240, 255, ${opacity * layer.alphaScale})` 
+            : `rgba(255, 255, 255, ${opacity * layer.alphaScale})`;
+            
+          ctx.lineWidth = strokeW;
+
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(cpX, cpY, ex, ey);
+          ctx.stroke();
+        }
+      });
+
+      // ==========================================
+      // ELEMENT 3: HOURS CORE (Radius 18% minDimension)
+      // ==========================================
+      const R3 = minDimension * 0.18;
+      const coreBaseRotation = fractionalHour * Math.PI * 2;
+
+      // Draw connection curved arc ring (complete circle connecting nodes)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.arc(0, 0, R3, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const curHourAngle = hours * (Math.PI * 2 / 24) - Math.PI / 2;
+      const hx = Math.cos(curHourAngle) * R3;
+      const hy = Math.sin(curHourAngle) * R3;
+
+      // Spark Emitter: emit 3 sparks per second (approx every 333ms)
+      if (Date.now() - lastSparkTime > 333) {
+        const randAngle = curHourAngle + (Math.random() - 0.5) * 1.0;
+        sparks.push({
+          x: hx,
+          y: hy,
+          angle: randAngle,
+          startTime: Date.now()
+        });
+        lastSparkTime = Date.now();
+      }
+
+      // Update & Draw Sparks
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        const elapsed = Date.now() - s.startTime;
+        if (elapsed > 500) {
+          sparks.splice(i, 1);
+          continue;
+        }
+
+        const progress = elapsed / 500;
+        const opacity = 0.12 + 0.88 * (1.0 - progress); // fade out
+        const curDist = progress * 40.0; // fly outward 40px
+
+        const sx = s.x + Math.cos(s.angle) * curDist;
+        const sy = s.y + Math.sin(s.angle) * curDist;
+
+        ctx.fillStyle = `rgba(255, 51, 102, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw Hour circles
+      for (let k = 0; k < 24; k++) {
+        const baseAngle = k * (Math.PI * 2 / 24) - Math.PI / 2;
+        const finalAngle = baseAngle + coreBaseRotation;
+
+        const x = Math.cos(finalAngle) * R3;
+        const y = Math.sin(finalAngle) * R3;
+
+        const distBehind = (hours - k + 24) % 24;
+
+        if (k === hours) {
+          // Current hour (accent color pulsing scale 10px-18px)
+          const scalePulse = Math.sin(timeInSec * 3.5) * 4.0;
+          const radius = 14.0 + scalePulse; // range [10, 18]
+
+          ctx.fillStyle = accentColor;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (distBehind > 0) {
+          // Past hours: filled gradient #333 to #666
+          const sizeRatio = 1 - distBehind / 23;
+          const radius = 2.0 + sizeRatio * 4.0; // 2.0 to 6.0px
+          
+          const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+          grad.addColorStop(0, '#666666');
+          grad.addColorStop(1, '#333333');
+          
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Future hours (outline only, opacity 0.2)
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+
+      // ==========================================
+      // ELEMENT 4: SECONDS HAND (GHOST trails + Star burst)
+      // ==========================================
+      const R4 = minDimension * 0.30;
+      
+      // Draw 5 ghost trail copies (at -1s, -2s ... -5s, opacities above 0.12)
+      const ghostOpacities = [0.4, 0.3, 0.2, 0.15, 0.12];
+      for (let g = 5; g >= 1; g--) {
+        const ghostSec = fractionalSecond - g * 0.12; // 0.12s staggered segments for smooth motion trail
+        const ghostAngle = ghostSec * (Math.PI * 2 / 60) - Math.PI / 2;
+        const gx = Math.cos(ghostAngle) * R4;
+        const gy = Math.sin(ghostAngle) * R4;
+
+        ctx.strokeStyle = `rgba(255, 51, 102, ${ghostOpacities[g - 1]})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(gx, gy);
+        ctx.stroke();
+      }
+
+      // Active Second Hand
+      const handAngle = fractionalSecond * (Math.PI * 2 / 60) - Math.PI / 2;
+      const ex = Math.cos(handAngle) * R4;
+      const ey = Math.sin(handAngle) * R4;
+
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.0;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(size, -size / 1.4, size * 2.2, 0);
-      ctx.quadraticCurveTo(size, size / 1.4, 0, 0);
-      ctx.fill();
-      
-      ctx.restore();
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Hand Tip: Star burst (6 lines, 8px radius)
+      drawStarBurst(ctx, ex, ey, 8.0, accentColor);
+
+      ctx.restore(); // restore from globalRotationAngle
+
+      // ==========================================
+      // COMPOSITION OVERLAYS (viewport space)
+      // ==========================================
+      ctx.globalCompositeOperation = 'source-over';
+
+      // 1. Large centered outer glow (#FF3366 at 0.12 opacity)
+      const outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, minDimension * 0.65);
+      outerGlow.addColorStop(0, 'rgba(255, 51, 102, 0.13)'); // glow core
+      outerGlow.addColorStop(1, 'rgba(255, 51, 102, 0.0)');
+      ctx.fillStyle = outerGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Black vignette at edges (0.45 opacity)
+      const vignette = ctx.createRadialGradient(cx, cy, minDimension * 0.38, cx, cy, Math.max(canvas.width, canvas.height) * 0.72);
+      vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      requestAnimationFrame(animate);
     }
 
-    // Individual Vine Branch Class
-    class Branch {
-      constructor(x, y, angle, gen = 0, width = 1.8) {
-        this.x = x;
-        this.y = y;
-        this.prevX = x;
-        this.prevY = y;
-        this.angle = angle;
-        this.generation = gen;
-        this.width = width;
-        
-        // Randomly assign a color from the organic palette
-        this.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-        
-        // Slow speed for fluid visual growth
-        this.speed = Math.random() * 0.7 + 0.6;
-        
-        // Natural step count limit for this branch generation
-        this.life = Math.random() * 110 + 90 - (gen * 8);
-        this.steps = 0;
-      }
-
-      update() {
-        this.prevX = this.x;
-        this.prevY = this.y;
-        
-        // Micro-wobble to simulate natural vine curves
-        this.angle += (Math.random() - 0.5) * 0.12;
-        
-        // Apply forward step
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-        
-        this.steps++;
-        this.life--;
-      }
-
-      draw() {
-        // Calculate thinning and fading based on generation depth
-        const genFactor = (1 - this.generation / 6);
-        const opacity = Math.max(0.15, genFactor);
-        
-        ctx.strokeStyle = this.color;
-        ctx.globalAlpha = opacity;
-        ctx.lineWidth = Math.max(0.4, this.width * genFactor);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
-        ctx.beginPath();
-        ctx.moveTo(this.prevX, this.prevY);
-        ctx.lineTo(this.x, this.y);
-        ctx.stroke();
-        
-        ctx.globalAlpha = 1.0; // restore default
-
-        // Grow tiny leaves periodically along the path
-        if (Math.random() < 0.04 && this.steps > 15) {
-          const sideAngle = this.angle + (Math.random() < 0.5 ? Math.PI / 3.2 : -Math.PI / 3.2);
-          const leafSize = Math.random() * 2 + 1.2;
-          const leafColor = PALETTE[4]; // brighter mint teal for leaves
-          drawLeaf(ctx, this.x, this.y, sideAngle, leafSize, leafColor);
-        }
-      }
-    }
-
-    // Initialize seed nodes
-    function initVines() {
-      activeBranches = [];
-      
-      // Grow from 3 to 5 random seed points
-      const seedCount = Math.floor(Math.random() * 3) + 3;
-      
-      for (let i = 0; i < seedCount; i++) {
-        // Keep seed points safely within viewport boundaries
-        const x = Math.random() * (canvas.width * 0.75) + (canvas.width * 0.125);
-        const y = Math.random() * (canvas.height * 0.75) + (canvas.height * 0.125);
-        
-        // Generate 2 to 3 branches going outwards radially from each seed point
-        const initialBranches = Math.floor(Math.random() * 2) + 2;
-        const baseAngle = Math.random() * Math.PI * 2;
-        
-        for (let j = 0; j < initialBranches; j++) {
-          const angle = baseAngle + (j * (Math.PI * 2 / initialBranches)) + (Math.random() - 0.5) * 0.2;
-          activeBranches.push(new Branch(x, y, angle, 0, 1.8));
-        }
-      }
-    }
-
-    // Main Loop
-    function loop() {
-      if (state === 'growing') {
-        for (let i = activeBranches.length - 1; i >= 0; i--) {
-          const b = activeBranches[i];
-          b.update();
-          b.draw();
-
-          // End branch if it hits edge or finishes life
-          const margin = 40;
-          const isOffscreen = b.x < -margin || b.x > canvas.width + margin || b.y < -margin || b.y > canvas.height + margin;
-
-          if (b.life <= 0 || isOffscreen) {
-            // Draw a final leaf cluster at the tip if inside canvas
-            if (!isOffscreen) {
-              const leafColor = PALETTE[4];
-              drawLeaf(ctx, b.x, b.y, b.angle + Math.PI / 4, 3, leafColor);
-              drawLeaf(ctx, b.x, b.y, b.angle - Math.PI / 4, 3, leafColor);
-            }
-            
-            activeBranches.splice(i, 1);
-            continue;
-          }
-
-          // Branching / Splitting
-          // Throttle split to avoid exponential slowdown (max active branches capped at 24)
-          const canSplit = b.generation < 5 && activeBranches.length < 24;
-          const splitChance = 0.015 / (b.generation + 1);
-
-          if (canSplit && b.steps > 25 && Math.random() < splitChance) {
-            const splitAngle = Math.random() * 0.18 + 0.18; // 10 to 20 degree split
-            
-            // Push twin child branches
-            activeBranches.push(new Branch(b.x, b.y, b.angle + splitAngle, b.generation + 1, b.width));
-            activeBranches.push(new Branch(b.x, b.y, b.angle - splitAngle, b.generation + 1, b.width));
-            
-            // Dequeue parent branch
-            activeBranches.splice(i, 1);
-          }
-        }
-
-        // Transition to rest when all vines complete growth
-        if (activeBranches.length === 0) {
-          state = 'resting';
-          transitionTimer = Date.now();
-        }
-      } 
-      else if (state === 'resting') {
-        // Show complete art piece for 3.5 seconds
-        if (Date.now() - transitionTimer > 3500) {
-          state = 'fading';
-          transitionTimer = Date.now();
-        }
-      } 
-      else if (state === 'fading') {
-        // Draw low-alpha backdrop rectangle to create fading dissolve trails
-        ctx.fillStyle = 'rgba(10, 10, 15, 0.015)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // After 2.5 seconds, reset fully and grow new seeds
-        if (Date.now() - transitionTimer > 2500) {
-          ctx.fillStyle = '#0a0a0f';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          initVines();
-          state = 'growing';
-        }
-      }
-
-      requestAnimationFrame(loop);
-    }
-
-    // Set up events & start loop
+    // Set up listeners
     window.addEventListener('resize', resizeCanvas);
+
+    // Bootstrap
+    initParticles();
+    resizeCanvas();
     
-    // Initial draw
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    ctx.fillStyle = '#0a0a0f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    initVines();
-    
-    requestAnimationFrame(loop);
+    // Kickoff render
+    requestAnimationFrame(animate);
   </script>
 </body>
 </html>
